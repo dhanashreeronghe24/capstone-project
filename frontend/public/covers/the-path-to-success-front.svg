@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="The Path to Success cover">
+<rect width="300" height="450" fill="#0e7490"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#ecfeff">THE PATH TO</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#ecfeff">SUCCESS</text>
+<polygon points="60,360 240,360 170,215 130,215" fill="#ecfeff" opacity="0.85"/><polygon points="148,360 152,360 156,215 144,215" fill="#facc15"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#ecfeff">JAMES WRIGHT</text>
+</svg>

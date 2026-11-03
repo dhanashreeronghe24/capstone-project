@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="The Vanishing House cover">
+<rect width="300" height="450" fill="#14532d"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#f0fdf4">THE VANISHING</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#f0fdf4">HOUSE</text>
+<polygon points="80,300 150,240 220,300" fill="#bef264"/><rect x="100" y="300" width="100" height="60" fill="#f0fdf4" opacity="0.35"/><rect x="138" y="322" width="24" height="38" fill="#14532d"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#f0fdf4">CLARA NELSON</text>
+</svg>
