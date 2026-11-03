@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="Joy of Minimalism cover">
+<rect width="300" height="450" fill="#facc15"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#1c1917">JOY OF</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#1c1917">MINIMALISM</text>
+<path d="M100 350 V285 a50 50 0 0 1 100 0 V350 H178 V285 a28 28 0 0 0 -56 0 V350 Z" fill="#1c1917"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#1c1917">DANIEL REED</text>
+</svg>

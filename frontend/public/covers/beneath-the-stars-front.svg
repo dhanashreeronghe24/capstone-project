@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="Beneath the Stars cover">
+<rect width="300" height="450" fill="#4c1d95"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#faf5ff">BENEATH THE</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#faf5ff">STARS</text>
+<circle cx="70" cy="240" r="5" fill="#f9a8d4"/><circle cx="220" cy="230" r="4" fill="#f9a8d4"/><circle cx="150" cy="280" r="7" fill="#f9a8d4"/><circle cx="95" cy="320" r="4" fill="#f9a8d4"/><circle cx="215" cy="320" r="5" fill="#f9a8d4"/><circle cx="250" cy="270" r="3" fill="#f9a8d4"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#faf5ff">JESSICA MARTIN</text>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="The Lost Kitten cover">
+<rect width="300" height="450" fill="#f97316"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#431407">THE LOST</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#431407">KITTEN</text>
+<polygon points="105,255 115,215 140,240" fill="#431407"/><polygon points="195,255 185,215 160,240" fill="#431407"/><circle cx="150" cy="285" r="52" fill="#431407"/><circle cx="132" cy="278" r="7" fill="#fff7ed"/><circle cx="168" cy="278" r="7" fill="#fff7ed"/><polygon points="145,295 155,295 150,303" fill="#fff7ed"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#431407">EMILY ROSE</text>
+</svg>

@@ -1,0 +1,1550 @@
+openapi: 3.0.3
+info:
+  title: BookWorm E-Commerce API
+  version: 1.0.0
+  description: |
+    Contract-first specification for the BookWorm online bookstore backend.
+    Covers member/auth, catalog, cart & wishlist, orders & coupons, mock payments and shipping.
+
+    * All error responses follow RFC 7807 Problem Details (`status`, `title`, `detail`, `errors`, `timestamp`).
+    * Payments are processed by a **mock gateway only**. A card number ending in `0000` is declined;
+      any other valid test card / UPI id succeeds with a `MOCK_TXN_<uuid>` reference.
+servers:
+  - url: http://localhost:4000
+    description: Local development
+tags:
+  - name: Auth
+  - name: Members
+  - name: Catalog
+  - name: Cart
+  - name: Wishlist
+  - name: Orders
+  - name: Coupons
+  - name: Payments
+  - name: Shipping
+  - name: System
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, example: ok }
+
+  # ---------------------------------------------------------------- AUTH
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new customer account
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and issue access + refresh tokens
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate tokens using a valid refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate the supplied refresh token
+      operationId: logoutUser
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204': { description: Logged out }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------- MEMBERS
+  /api/v1/members/me:
+    get:
+      tags: [Members]
+      summary: Fetch authenticated profile with addresses
+      operationId: getMyProfile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [Members]
+      summary: Update profile details
+      operationId: updateMyProfile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/members/me/addresses:
+    get:
+      tags: [Members]
+      summary: List saved shipping addresses
+      operationId: listMyAddresses
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Members]
+      summary: Add a shipping address
+      operationId: addMyAddress
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Address' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/members/me/addresses/{id}:
+    delete:
+      tags: [Members]
+      summary: Remove a saved address
+      operationId: deleteMyAddress
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Address removed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------- CATALOG
+  /api/v1/categories:
+    get:
+      tags: [Catalog]
+      summary: Hierarchical category tree
+      operationId: listCategories
+      responses:
+        '200':
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CategoryNode' }
+  /api/v1/catalog/books:
+    get:
+      tags: [Catalog]
+      summary: Search, filter, sort and paginate books
+      operationId: searchBooks
+      parameters:
+        - { name: q, in: query, description: Free-text match on title / author / publisher, schema: { type: string } }
+        - { name: category, in: query, description: Category slug, schema: { type: string } }
+        - { name: authorId, in: query, schema: { type: string, format: uuid } }
+        - { name: publisher, in: query, schema: { type: string } }
+        - { name: format, in: query, schema: { $ref: '#/components/schemas/BookFormat' } }
+        - { name: language, in: query, schema: { type: string } }
+        - { name: minPrice, in: query, schema: { type: number, minimum: 0 } }
+        - { name: maxPrice, in: query, schema: { type: number, minimum: 0 } }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, price_asc, price_desc, publication_date, rating]
+            default: relevance
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated books
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Catalog]
+      summary: Create a book (ROLE_CATALOG_ADMIN)
+      operationId: createBook
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookInput' }
+      responses:
+        '201':
+          description: Book created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/catalog/books/{id}:
+    get:
+      tags: [Catalog]
+      summary: Book details (PDP)
+      operationId: getBook
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Book details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catalog]
+      summary: Update book details / stock (ROLE_CATALOG_ADMIN)
+      operationId: updateBook
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookUpdate' }
+      responses:
+        '200':
+          description: Updated book
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/catalog/featured:
+    get:
+      tags: [Catalog]
+      summary: Curated sections - recommended, bestsellers, new launches
+      operationId: getFeatured
+      responses:
+        '200':
+          description: Curated sections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedSections' }
+  /api/v1/catalog/books/{id}/related:
+    get:
+      tags: [Catalog]
+      summary: Related reads (cross-sell / up-sell)
+      operationId: getRelatedBooks
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Related books
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BookSummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/catalog/books/{id}/reviews:
+    get:
+      tags: [Catalog]
+      summary: Paginated reviews with average rating
+      operationId: listReviews
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Reviews
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Catalog]
+      summary: Submit a rating and review
+      operationId: createReview
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewInput' }
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/authors/{id}:
+    get:
+      tags: [Catalog]
+      summary: Author profile and published books
+      operationId: getAuthor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Author
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthorDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- CART
+  /api/v1/cart:
+    get:
+      tags: [Cart]
+      summary: Current cart with cost breakdown (guest or user)
+      operationId: getCart
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/GuestSession'
+      responses:
+        '200':
+          description: Cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add a book to the cart
+      description: |
+        For guests, omit `x-guest-session-id`; the server creates a session and returns it in the
+        `x-guest-session-id` response header and in the `guestSessionId` body field.
+      operationId: addCartItem
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/GuestSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddCartItemRequest' }
+      responses:
+        '201':
+          description: Updated cart
+          headers:
+            x-guest-session-id:
+              description: Guest session token (guest carts only)
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/cart/items/{itemId}:
+    put:
+      tags: [Cart]
+      summary: Update item quantity
+      operationId: updateCartItem
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/GuestSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCartItemRequest' }
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      operationId: removeCartItem
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/GuestSession'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/cart/merge:
+    post:
+      tags: [Cart]
+      summary: Merge a guest cart into the customer cart after login
+      operationId: mergeCart
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guestSessionId]
+              properties:
+                guestSessionId: { type: string }
+      responses:
+        '200':
+          description: Merged cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ------------------------------------------------------------ WISHLIST
+  /api/v1/wishlist:
+    get:
+      tags: [Wishlist]
+      summary: List wishlist items
+      operationId: getWishlist
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Wishlist
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WishlistItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/wishlist/items:
+    post:
+      tags: [Wishlist]
+      summary: Add a book to the wishlist
+      operationId: addWishlistItem
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookId]
+              properties:
+                bookId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WishlistItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/wishlist/items/{bookId}:
+    delete:
+      tags: [Wishlist]
+      summary: Remove a book from the wishlist
+      operationId: removeWishlistItem
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Removed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/wishlist/move-to-cart/{bookId}:
+    post:
+      tags: [Wishlist]
+      summary: Move a wishlist item into the cart
+      operationId: moveWishlistToCart
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # -------------------------------------------------------------- ORDERS
+  /api/v1/orders/checkout/summary:
+    post:
+      tags: [Orders]
+      summary: Checkout preview (subtotal, tax, shipping, discount, points)
+      operationId: checkoutSummary
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/GuestSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutSummaryRequest' }
+      responses:
+        '200':
+          description: Computed totals
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutSummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/orders:
+    post:
+      tags: [Orders]
+      summary: Create an immutable order from the cart
+      description: Idempotent on the `Idempotency-Key` header. Replays return the original order with 200.
+      operationId: createOrder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, maxLength: 100 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '200':
+          description: Idempotent replay of an existing order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '201':
+          description: Order created (status PAYMENT_PENDING)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    get:
+      tags: [Orders]
+      summary: Paginated order history
+      operationId: listOrders
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/orders/{orderId}:
+    get:
+      tags: [Orders]
+      summary: Order detail with items, payment, shipment and status history
+      operationId: getOrder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      responses:
+        '200':
+          description: Order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order before shipment
+      operationId: cancelOrder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200':
+          description: Cancelled order (a mock refund is triggered if already paid)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/orders/{orderId}/return:
+    post:
+      tags: [Orders]
+      summary: Request a return for a delivered order
+      operationId: returnOrder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 255 }
+      responses:
+        '200':
+          description: Order in RETURN_REQUESTED state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/orders/{orderId}/status:
+    patch:
+      tags: [Orders]
+      summary: Advance order state (ROLE_FULFILLMENT / ROLE_STORE_ADMIN)
+      description: Validates the transition against the order state machine.
+      operationId: updateOrderStatus
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/OrderStatus' }
+                comments: { type: string, maxLength: 255 }
+                carrierName: { type: string, description: Required when moving to SHIPPED }
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/orders/{orderId}/buy-again:
+    post:
+      tags: [Orders]
+      summary: Add a previous order's items to the active cart
+      operationId: buyAgain
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/coupons/validate:
+    post:
+      tags: [Coupons]
+      summary: Validate a coupon against the current cart
+      operationId: validateCoupon
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/GuestSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: Coupon is valid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouponValidation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------------ PAYMENTS
+  /api/v1/payments/initiate:
+    post:
+      tags: [Payments]
+      summary: Create a mock payment intent for an order
+      operationId: initiatePayment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string, maxLength: 100 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, paymentMethod]
+              properties:
+                orderId: { type: string, format: uuid }
+                paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+      responses:
+        '201':
+          description: Payment intent created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTransaction' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/payments/confirm:
+    post:
+      tags: [Payments]
+      summary: Confirm a payment with simulated card / UPI / wallet details
+      description: |
+        Raw card numbers and CVVs are never persisted. Card ending `0000` => `FAILED` (HTTP 200 with
+        status `FAILED`; order status becomes PAYMENT_PENDING). Any other valid instrument => `SUCCESS`
+        with `MOCK_TXN_<uuid>`, order becomes CONFIRMED and stock is deducted.
+      operationId: confirmPayment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmPaymentRequest' }
+      responses:
+        '200':
+          description: Payment outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOutcome' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/payments/simulate-webhook:
+    post:
+      tags: [Payments]
+      summary: Simulate an asynchronous gateway webhook callback
+      operationId: simulateWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gatewayOrderId, status]
+              properties:
+                gatewayOrderId: { type: string }
+                status: { type: string, enum: [SUCCESS, FAILED] }
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOutcome' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/payments/{paymentId}/refund:
+    post:
+      tags: [Payments]
+      summary: Trigger a mock refund (ROLE_STORE_ADMIN)
+      operationId: refundPayment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                amount: { type: number, minimum: 0.01, description: Omit for full refund }
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Refund processed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Refund' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------------ SHIPPING
+  /api/v1/shipping/calculate-rate:
+    post:
+      tags: [Shipping]
+      summary: Calculate shipping cost by pincode, weight and tier
+      operationId: calculateShippingRate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [postalCode, weightKg]
+              properties:
+                postalCode: { type: string, example: '560001' }
+                weightKg: { type: number, minimum: 0.01 }
+                orderAmount: { type: number, minimum: 0, description: Used for the free-shipping threshold }
+                tier: { $ref: '#/components/schemas/ShippingTier' }
+      responses:
+        '200':
+          description: Rate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShippingRate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/shipping/estimate-delivery:
+    get:
+      tags: [Shipping]
+      summary: Estimated delivery date for a pincode
+      operationId: estimateDelivery
+      parameters:
+        - { name: postalCode, in: query, required: true, schema: { type: string } }
+        - { name: tier, in: query, schema: { $ref: '#/components/schemas/ShippingTier' } }
+        - { name: bookId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Estimate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveryEstimate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/v1/shipping/track/{trackingNumber}:
+    get:
+      tags: [Shipping]
+      summary: Shipment transit milestones
+      operationId: trackShipment
+      parameters:
+        - { name: trackingNumber, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Tracking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tracking' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OrderIdPath:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    GuestSession:
+      name: x-guest-session-id
+      in: header
+      required: false
+      description: Guest session token. Ignored when a valid bearer token is supplied.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Validation failure
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Insufficient role
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Entity not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Duplicate entry or concurrency conflict
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: Domain validation failure
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      required: [status, title, detail, timestamp]
+      properties:
+        status: { type: integer, example: 400 }
+        title: { type: string, example: Bad Request }
+        detail: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    # ----- Auth / Member
+    Role:
+      type: string
+      enum: [ROLE_CUSTOMER, ROLE_CATALOG_ADMIN, ROLE_STORE_ADMIN, ROLE_FULFILLMENT, ROLE_SYSTEM]
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        phoneNumber: { type: string, maxLength: 20 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: Access token lifetime in seconds }
+    UserSummary:
+      type: object
+      required: [id, email, firstName, lastName, roles]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        firstName: { type: string }
+        lastName: { type: string }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/Role' }
+    AuthResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        tokens: { $ref: '#/components/schemas/TokenPair' }
+    Profile:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          required: [rewardPoints, addresses]
+          properties:
+            phoneNumber: { type: string, nullable: true }
+            rewardPoints: { type: integer }
+            addresses:
+              type: array
+              items: { $ref: '#/components/schemas/Address' }
+    UpdateProfileRequest:
+      type: object
+      minProperties: 1
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        phoneNumber: { type: string, maxLength: 20, nullable: true }
+    AddressInput:
+      type: object
+      required: [recipientName, phoneNumber, addressLine1, city, state, postalCode]
+      properties:
+        recipientName: { type: string, maxLength: 150 }
+        phoneNumber: { type: string, maxLength: 20 }
+        addressLine1: { type: string, maxLength: 255 }
+        addressLine2: { type: string, maxLength: 255, nullable: true }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 100 }
+        postalCode: { type: string, pattern: '^[0-9]{6}$', example: '560001' }
+        country: { type: string, default: India }
+        isDefault: { type: boolean, default: false }
+    Address:
+      allOf:
+        - $ref: '#/components/schemas/AddressInput'
+        - type: object
+          required: [id, country, isDefault]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+
+    # ----- Catalog
+    BookFormat:
+      type: string
+      enum: [PAPERBACK, HARDCOVER, EBOOK]
+    Category:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    CategoryNode:
+      allOf:
+        - $ref: '#/components/schemas/Category'
+        - type: object
+          required: [children]
+          properties:
+            children:
+              type: array
+              items: { $ref: '#/components/schemas/CategoryNode' }
+    AuthorRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+    BookSummary:
+      type: object
+      required: [id, title, author, format, price, frontCoverUrl, averageRating, reviewCount, inStock, categories]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        subtitle: { type: string, nullable: true }
+        author: { $ref: '#/components/schemas/AuthorRef' }
+        format: { $ref: '#/components/schemas/BookFormat' }
+        language: { type: string }
+        price: { type: number }
+        listPrice: { type: number, nullable: true }
+        frontCoverUrl: { type: string }
+        averageRating: { type: number }
+        reviewCount: { type: integer }
+        inStock: { type: boolean }
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+    BookDetail:
+      allOf:
+        - $ref: '#/components/schemas/BookSummary'
+        - type: object
+          required: [isbn, stockQuantity, totalSalesCount]
+          properties:
+            isbn: { type: string }
+            description: { type: string, nullable: true }
+            backCoverUrl: { type: string, nullable: true }
+            publisher:
+              type: object
+              nullable: true
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+                description: { type: string, nullable: true }
+            authorBio: { type: string, nullable: true }
+            stockQuantity: { type: integer }
+            totalSalesCount: { type: integer }
+            publicationDate: { type: string, format: date, nullable: true }
+    BookPage:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/BookSummary' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    BookInput:
+      type: object
+      required: [title, isbn, authorId, format, frontCoverUrl, price]
+      properties:
+        title: { type: string, maxLength: 255 }
+        subtitle: { type: string, maxLength: 255, nullable: true }
+        isbn: { type: string, maxLength: 20 }
+        authorId: { type: string, format: uuid }
+        publisherId: { type: string, format: uuid, nullable: true }
+        format: { $ref: '#/components/schemas/BookFormat' }
+        language: { type: string, default: English }
+        description: { type: string, nullable: true }
+        frontCoverUrl: { type: string, maxLength: 500 }
+        backCoverUrl: { type: string, maxLength: 500, nullable: true }
+        price: { type: number, minimum: 0 }
+        listPrice: { type: number, minimum: 0, nullable: true }
+        stockQuantity: { type: integer, minimum: 0, default: 0 }
+        isFeatured: { type: boolean }
+        isBestseller: { type: boolean }
+        isNewLaunch: { type: boolean }
+        publicationDate: { type: string, format: date, nullable: true }
+        categoryIds:
+          type: array
+          items: { type: integer }
+    BookUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, maxLength: 255 }
+        subtitle: { type: string, maxLength: 255, nullable: true }
+        publisherId: { type: string, format: uuid, nullable: true }
+        format: { $ref: '#/components/schemas/BookFormat' }
+        language: { type: string }
+        description: { type: string, nullable: true }
+        frontCoverUrl: { type: string, maxLength: 500 }
+        backCoverUrl: { type: string, maxLength: 500, nullable: true }
+        price: { type: number, minimum: 0 }
+        listPrice: { type: number, minimum: 0, nullable: true }
+        stockQuantity: { type: integer, minimum: 0 }
+        isFeatured: { type: boolean }
+        isBestseller: { type: boolean }
+        isNewLaunch: { type: boolean }
+        publicationDate: { type: string, format: date, nullable: true }
+        categoryIds:
+          type: array
+          items: { type: integer }
+    FeaturedSections:
+      type: object
+      required: [recommended, bestsellers, newLaunches]
+      properties:
+        recommended:
+          type: array
+          items: { $ref: '#/components/schemas/BookSummary' }
+        bestsellers:
+          type: array
+          items: { $ref: '#/components/schemas/BookSummary' }
+        newLaunches:
+          type: array
+          items: { $ref: '#/components/schemas/BookSummary' }
+    AuthorDetail:
+      type: object
+      required: [id, name, books]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        bio: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        books:
+          type: array
+          items: { $ref: '#/components/schemas/BookSummary' }
+    ReviewInput:
+      type: object
+      required: [rating]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 2000 }
+    Review:
+      type: object
+      required: [id, bookId, rating, reviewerName, isVerifiedPurchase, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        rating: { type: integer }
+        reviewerName: { type: string }
+        comment: { type: string, nullable: true }
+        isVerifiedPurchase: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ReviewPage:
+      type: object
+      required: [data, pagination, averageRating, reviewCount]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Review' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        averageRating: { type: number }
+        reviewCount: { type: integer }
+
+    # ----- Cart
+    AddCartItemRequest:
+      type: object
+      required: [bookId]
+      properties:
+        bookId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, default: 1 }
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 1 }
+    CartItem:
+      type: object
+      required: [id, bookId, title, author, format, coverImageUrl, unitPrice, quantity, lineTotal]
+      properties:
+        id: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        title: { type: string }
+        author: { type: string }
+        format: { $ref: '#/components/schemas/BookFormat' }
+        coverImageUrl: { type: string }
+        unitPrice: { type: number }
+        quantity: { type: integer }
+        lineTotal: { type: number }
+    Cart:
+      type: object
+      required: [id, items, itemCount, subtotal, taxAmount, shippingFee, totalAmount]
+      properties:
+        id: { type: string, format: uuid }
+        guestSessionId: { type: string, nullable: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CartItem' }
+        itemCount: { type: integer }
+        subtotal: { type: number }
+        taxAmount: { type: number }
+        shippingFee: { type: number }
+        totalAmount: { type: number }
+    WishlistItem:
+      type: object
+      required: [id, book, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        book: { $ref: '#/components/schemas/BookSummary' }
+        createdAt: { type: string, format: date-time }
+
+    # ----- Orders
+    ShippingTier:
+      type: string
+      enum: [STANDARD, EXPRESS]
+      default: STANDARD
+    OrderStatus:
+      type: string
+      enum: [CREATED, PAYMENT_PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, RETURN_REQUESTED, RETURNED, REFUNDED]
+    CheckoutSummaryRequest:
+      type: object
+      required: [postalCode]
+      properties:
+        postalCode: { type: string, pattern: '^[0-9]{6}$' }
+        shippingTier: { $ref: '#/components/schemas/ShippingTier' }
+        couponCode: { type: string }
+        redeemPoints: { type: integer, minimum: 0, default: 0 }
+    CheckoutSummary:
+      type: object
+      required: [itemCount, subtotal, taxAmount, shippingFee, discountAmount, pointsDiscount, totalAmount, estimatedDelivery]
+      properties:
+        itemCount: { type: integer }
+        subtotal: { type: number }
+        taxAmount: { type: number }
+        shippingFee: { type: number }
+        discountAmount: { type: number }
+        pointsRedeemed: { type: integer }
+        pointsDiscount: { type: number }
+        totalAmount: { type: number }
+        couponCode: { type: string, nullable: true }
+        estimatedDelivery: { type: string, format: date }
+    CreateOrderRequest:
+      type: object
+      description: Provide either a saved `addressId` or an inline `shippingAddress`.
+      anyOf:
+        - required: [addressId]
+        - required: [shippingAddress]
+      properties:
+        addressId: { type: string, format: uuid, description: Saved address to use }
+        shippingAddress:
+          allOf:
+            - $ref: '#/components/schemas/AddressInput'
+          description: Address snapshot; used when addressId is omitted
+        shippingTier: { $ref: '#/components/schemas/ShippingTier' }
+        couponCode: { type: string }
+        redeemPoints: { type: integer, minimum: 0, default: 0 }
+    OrderItem:
+      type: object
+      required: [id, bookId, bookTitle, bookAuthor, bookFormat, coverImageUrl, unitPrice, quantity, totalPrice]
+      properties:
+        id: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        bookTitle: { type: string }
+        bookAuthor: { type: string }
+        bookFormat: { type: string }
+        coverImageUrl: { type: string }
+        unitPrice: { type: number }
+        quantity: { type: integer }
+        totalPrice: { type: number }
+    OrderStatusEvent:
+      type: object
+      required: [status, createdAt]
+      properties:
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        comments: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    Order:
+      type: object
+      required: [id, orderNumber, status, subtotalAmount, taxAmount, shippingFee, discountAmount, totalAmount, items, estimatedDelivery, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        subtotalAmount: { type: number }
+        taxAmount: { type: number }
+        shippingFee: { type: number }
+        discountAmount: { type: number }
+        totalAmount: { type: number }
+        couponCode: { type: string, nullable: true }
+        pointsRedeemed: { type: integer }
+        shippingAddress: { $ref: '#/components/schemas/AddressInput' }
+        estimatedDelivery: { type: string, format: date }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        statusHistory:
+          type: array
+          items: { $ref: '#/components/schemas/OrderStatusEvent' }
+        payment: { $ref: '#/components/schemas/PaymentTransaction' }
+        shipment: { $ref: '#/components/schemas/Tracking' }
+        createdAt: { type: string, format: date-time }
+    OrderPage:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Order' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    CouponValidation:
+      type: object
+      required: [code, valid, discountAmount]
+      properties:
+        code: { type: string }
+        valid: { type: boolean }
+        discountAmount: { type: number }
+        discountType: { type: string, enum: [PERCENTAGE, FIXED_AMOUNT] }
+
+    # ----- Payments
+    PaymentMethod:
+      type: string
+      enum: [CREDIT_CARD, DEBIT_CARD, UPI, WALLET]
+    PaymentStatus:
+      type: string
+      enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+    PaymentTransaction:
+      type: object
+      required: [id, orderId, gatewayOrderId, paymentMethod, amount, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        gatewayOrderId: { type: string }
+        gatewayPaymentId: { type: string, nullable: true, example: MOCK_TXN_6f1d2c1e-0000-4000-8000-000000000000 }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        amount: { type: number }
+        currency: { type: string, example: INR }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        errorMessage: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ConfirmPaymentRequest:
+      type: object
+      required: [paymentId, paymentMethod]
+      properties:
+        paymentId: { type: string, format: uuid }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        card:
+          type: object
+          description: Required for CREDIT_CARD / DEBIT_CARD. Never persisted.
+          required: [number, holderName, cvv, expiry]
+          properties:
+            number: { type: string, pattern: '^[0-9]{13,19}$' }
+            holderName: { type: string }
+            cvv: { type: string, pattern: '^[0-9]{3,4}$' }
+            expiry: { type: string, pattern: '^(0[1-9]|1[0-2])/[0-9]{2}$', example: 12/30 }
+        upiId: { type: string, example: user@bank, description: Required for UPI }
+        walletId: { type: string, description: Required for WALLET }
+    PaymentOutcome:
+      type: object
+      required: [payment, orderStatus]
+      properties:
+        payment: { $ref: '#/components/schemas/PaymentTransaction' }
+        orderStatus: { $ref: '#/components/schemas/OrderStatus' }
+    Refund:
+      type: object
+      required: [id, paymentId, orderId, refundAmount, reason, status]
+      properties:
+        id: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        refundAmount: { type: number }
+        gatewayRefundId: { type: string, nullable: true, example: MOCK_REF_6f1d2c1e }
+        reason: { type: string }
+        status: { type: string, enum: [INITIATED, PROCESSED, FAILED] }
+        createdAt: { type: string, format: date-time }
+
+    # ----- Shipping
+    ShippingRate:
+      type: object
+      required: [zoneCode, tier, rate, isFree, estimatedDelivery]
+      properties:
+        zoneCode: { type: string }
+        tier: { $ref: '#/components/schemas/ShippingTier' }
+        rate: { type: number }
+        isFree: { type: boolean }
+        estimatedDelivery: { type: string, format: date }
+    DeliveryEstimate:
+      type: object
+      required: [postalCode, tier, estimatedDelivery, deliveryDays, isServiceable]
+      properties:
+        postalCode: { type: string }
+        tier: { $ref: '#/components/schemas/ShippingTier' }
+        deliveryDays: { type: integer }
+        estimatedDelivery: { type: string, format: date }
+        isServiceable: { type: boolean }
+    Tracking:
+      type: object
+      required: [trackingNumber, carrierName, shippingStatus, estimatedDelivery]
+      properties:
+        trackingNumber: { type: string }
+        carrierName: { type: string }
+        shippingStatus: { type: string, enum: [MANIFESTED, IN_TRANSIT, DELIVERED] }
+        dispatchedAt: { type: string, format: date-time, nullable: true }
+        estimatedDelivery: { type: string, format: date }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        milestones:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              timestamp: { type: string, format: date-time }

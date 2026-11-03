@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450" role="img" aria-label="The Final Frontier cover">
+<rect width="300" height="450" fill="#172554"/>
+<rect x="0" y="0" width="12" height="450" fill="#000" opacity="0.18"/>
+<text x="150" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#eff6ff">THE FINAL</text><text x="150" y="106" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#eff6ff">FRONTIER</text>
+<ellipse cx="150" cy="270" rx="22" ry="62" fill="#eff6ff"/><polygon points="128,300 108,336 140,320" fill="#60a5fa"/><polygon points="172,300 192,336 160,320" fill="#60a5fa"/><circle cx="150" cy="255" r="9" fill="#60a5fa"/>
+<text x="150" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#eff6ff">LAURA MITCHELL</text>
+</svg>
