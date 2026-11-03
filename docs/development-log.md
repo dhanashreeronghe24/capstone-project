@@ -11,7 +11,7 @@
 | :--- | :--- |
 | Node / npm | v22.17.0 / 10.9.2 |
 | PostgreSQL, `psql`, Docker | Not installed / not running |
-| Resolution | Added dev dependency `embedded-postgres` and `backend/scripts/dev-db.ts` (`npm run db:dev`) to run a local PostgreSQL 18 on port 5432 (`postgres`/`postgres`, DB `bookworm_db`, data in `backend/.pgdata`). |
+| Resolution | Added dev dependency `embedded-postgres` and `backend/tests/scripts/dev-db.ts` (`npm run db:dev`) to run a local PostgreSQL 18 on port 5432 (`postgres`/`postgres`, DB `bookworm_db`, data in `backend/.pgdata`). |
 
 Wireframes (images 1, 4, 5, 6) were reviewed to shape seed data (book titles/prices), checkout totals (price, tax, delivery, coupon, discount), payment methods (Credit, Debit, UPI, Wallet) and the purchase confirmation flow.
 

@@ -9,19 +9,20 @@
   },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "prisma generate --schema=tests/prisma/schema.prisma && tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "db:dev": "ts-node --transpile-only scripts/dev-db.ts"
+    "prisma:generate": "prisma generate --schema=tests/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=tests/prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema=tests/prisma/schema.prisma",
+    "prisma:seed": "ts-node tests/prisma/seed.ts",
+    "db:dev": "ts-node --transpile-only tests/scripts/dev-db.ts"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "schema": "tests/prisma/schema.prisma",
+    "seed": "ts-node tests/prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
