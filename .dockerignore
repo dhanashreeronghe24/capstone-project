@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/coverage
+.git
+.bob
+.gitignore
+**/.env
+**/.env.*
+backend/.pgdata
+backend/scripts
+frontend
+docs/wireframes
+docs/*.png
+*.md
+!docs/openapi/**
